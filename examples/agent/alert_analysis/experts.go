@@ -25,6 +25,7 @@ type ExpertAgent struct {
 	description string
 	instruction string
 	chatModel   model.ChatModel
+	skills      []SkillType // 该专家具备的技能
 }
 
 // NewExpertAgent 创建专家 Agent
@@ -36,11 +37,24 @@ func NewExpertAgent(ctx context.Context, expertType ExpertType, chatModel model.
 
 	// 根据专家类型配置
 	var name, description, instruction string
+	var skills []SkillType
 
 	switch expertType {
 	case FaultDiagnosisExpert:
 		name = "故障诊断专家"
 		description = "专门负责分析系统故障的根本原因"
+		// 故障诊断专家具备的技能
+		skills = []SkillType{
+			LogQuerySkill,          // 日志查询
+			MetricQuerySkill,       // 监控指标查询
+			TraceQuerySkill,        // 链路追踪
+			TopologyQuerySkill,     // 拓扑分析
+			ErrorLogAnalysisSkill,  // 错误日志分析
+			RootCauseAnalysisSkill, // 根因分析
+			PatternMatchingSkill,   // 模式匹配
+			FaultPropagationSkill,  // 故障传播分析
+			HistoryMatchSkill,      // 历史案例匹配
+		}
 		instruction = `你是一位资深的故障诊断专家，具备深厚的技术背景和丰富的故障排查经验。
 
 你的职责：
@@ -64,6 +78,19 @@ func NewExpertAgent(ctx context.Context, expertType ExpertType, chatModel model.
 	case PerformanceAnalysisExpert:
 		name = "性能分析专家"
 		description = "专门负责分析系统性能指标和瓶颈"
+		// 性能分析专家具备的技能
+		skills = []SkillType{
+			MetricQuerySkill,         // 监控指标查询
+			TimeSeriesAnalysisSkill,  // 时间序列分析
+			CorrelationAnalysisSkill, // 关联分析
+			SlowQueryAnalysisSkill,   // 慢查询分析
+			MemoryAnalysisSkill,      // 内存分析
+			CPUAnalysisSkill,         // CPU分析
+			DiskAnalysisSkill,        // 磁盘分析
+			DatabaseAnalysisSkill,    // 数据库分析
+			CacheAnalysisSkill,       // 缓存分析
+			CapacityAnalysisSkill,    // 容量分析
+		}
 		instruction = `你是一位资深的性能分析专家，精通系统性能优化和资源管理。
 
 你的职责：
@@ -88,6 +115,14 @@ func NewExpertAgent(ctx context.Context, expertType ExpertType, chatModel model.
 	case BusinessImpactExpert:
 		name = "业务影响专家"
 		description = "专门负责评估故障对业务的影响"
+		// 业务影响专家具备的技能
+		skills = []SkillType{
+			TopologyQuerySkill,        // 拓扑分析（了解影响范围）
+			HistoryMatchSkill,         // 历史案例匹配
+			CorrelationAnalysisSkill,   // 关联分析
+			AnomalyDetectionSkill,      // 异常检测
+			TrendAnalysisSkill,         // 趋势分析
+		}
 		instruction = `你是一位资深的业务分析专家，精通IT系统与业务价值的关联分析。
 
 你的职责：
@@ -120,6 +155,7 @@ func NewExpertAgent(ctx context.Context, expertType ExpertType, chatModel model.
 		description: description,
 		instruction: instruction,
 		chatModel:   chatModel,
+		skills:      skills,
 	}, nil
 }
 
@@ -133,18 +169,55 @@ func (e *ExpertAgent) Analyze(ctx context.Context, context AnalysisContext) (*Ex
 	fmt.Printf("[%s] 正在分析 %d 个告警 (迭代轮次: %d)\n",
 		e.name, len(context.Alarms), context.Iteration)
 
+	// 创建技能注册表
+	registry := NewSkillRegistry()
+
+	// 调用该专家具备的所有技能
+	fmt.Printf("  → 调用技能: ")
+	skillResults := make([]string, 0, len(e.skills))
+	for i, skillType := range e.skills {
+		if i > 0 {
+			fmt.Print(", ")
+		}
+		skill, ok := registry.Get(skillType)
+		if !ok {
+			fmt.Printf("%s(未找到)", skillType)
+			continue
+		}
+		fmt.Printf("%s", skill.GetName())
+
+		// 执行技能
+		result, err := skill.Execute(ctx, nil)
+		if err != nil {
+			fmt.Printf("\n  [ERROR] 技能 %s 执行失败: %v\n", skill.GetName(), err)
+			continue
+		}
+
+		// 收集技能结果
+		skillResults = append(skillResults, fmt.Sprintf("[%s] %s: %s",
+			skill.GetName(), result.Message, formatSkillData(result.Data)))
+	}
+	fmt.Println()
+
 	// TODO: 实际调用 ChatModel 进行分析
 	// result, err := e.chatModel.Generate(ctx, prompt)
 
-	// 模拟返回结果
+	// 模拟返回结果，基于技能执行结果
+	findings := []string{
+		fmt.Sprintf("发现 %s 相关的异常模式", e.name),
+	}
+	for _, sr := range skillResults {
+		findings = append(findings, sr)
+	}
+	if len(skillResults) > 0 {
+		findings = append(findings, "需要进一步验证")
+	}
+
 	result := &ExpertAnalysisResult{
 		ExpertName:  e.name,
 		ExpertType:  string(e.expertType),
 		Analysis:    fmt.Sprintf("%s 的分析结果: 发现 %d 个关键问题", e.name, len(context.Alarms)),
-		Findings:    []string{
-			fmt.Sprintf("发现 %s 相关的异常模式", e.name),
-			"需要进一步验证",
-		},
+		Findings:    findings,
 		Confidence: 0.75,
 		Recommendations: []string{
 			"建议立即排查",
@@ -153,6 +226,37 @@ func (e *ExpertAgent) Analyze(ctx context.Context, context AnalysisContext) (*Ex
 	}
 
 	return result, nil
+}
+
+// formatSkillData 格式化技能数据用于显示
+func formatSkillData(data map[string]any) string {
+	// 提取一些关键信息进行显示
+	var keyInfo string
+
+	// 根据不同的数据类型提取关键信息
+	if v, ok := data["logCount"]; ok {
+		keyInfo = fmt.Sprintf("日志数:%v", v)
+	} else if v, ok := data["cpu"]; ok {
+		if cpu, ok := v.(map[string]any); ok {
+			keyInfo = fmt.Sprintf("CPU:%.1f%%", cpu["usage"])
+		}
+	} else if v, ok := data["trend"]; ok {
+		keyInfo = fmt.Sprintf("趋势:%v", v)
+	} else if v, ok := data["rootCauses"]; ok {
+		if roots, ok := v.([]map[string]any); ok && len(roots) > 0 {
+			keyInfo = fmt.Sprintf("根因数:%d", len(roots))
+		}
+	} else if v, ok := data["slowQueries"]; ok {
+		if queries, ok := v.([]map[string]any); ok {
+			keyInfo = fmt.Sprintf("慢查询:%d", len(queries))
+		}
+	} else if v, ok := data["similarCases"]; ok {
+		if cases, ok := v.([]map[string]any); ok {
+			keyInfo = fmt.Sprintf("相似案例:%d", len(cases))
+		}
+	}
+
+	return keyInfo
 }
 
 // buildAnalysisPrompt 构建分析提示
@@ -197,4 +301,21 @@ func (e *ExpertAgent) GetName() string {
 // GetType 获取专家类型
 func (e *ExpertAgent) GetType() ExpertType {
 	return e.expertType
+}
+
+// GetSkills 获取专家具备的技能列表
+func (e *ExpertAgent) GetSkills() []SkillType {
+	return e.skills
+}
+
+// PrintSkills 打印专家具备的技能
+func (e *ExpertAgent) PrintSkills() {
+	registry := NewSkillRegistry()
+	fmt.Printf("\n【%s】具备的技能:\n", e.name)
+	for _, skillType := range e.skills {
+		skill, ok := registry.Get(skillType)
+		if ok {
+			fmt.Printf("  ✓ %s (%s) - %s\n", skill.GetName(), skill.GetType(), skill.GetDescription())
+		}
+	}
 }

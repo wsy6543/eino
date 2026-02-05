@@ -74,6 +74,54 @@
 
 ## 核心组件
 
+### 0. Skill Library (技能库)
+
+可复用的故障处理原子能力，按类别分为：
+
+**数据采集类**:
+- `log_query` - 日志查询：查询指定时间范围的日志
+- `metric_query` - 监控指标查询：查询 CPU、内存、网络等指标
+- `trace_query` - 链路追踪：查询分布式追踪信息
+- `topology_query` - 拓扑分析：分析服务依赖关系
+
+**分析类**:
+- `timeseries_analysis` - 时间序列分析：分析趋势和异常点
+- `correlation_analysis` - 关联分析：分析指标间关联关系
+- `pattern_matching` - 模式匹配：匹配已知故障模式
+- `history_match` - 历史案例匹配：匹配相似历史故障
+- `rootcause_analysis` - 根因分析：深度分析根本原因
+- `fault_propagation` - 故障传播分析：分析故障传播路径
+
+**诊断类**:
+- `slowquery_analysis` - 慢查询分析：分析数据库慢查询
+- `errorlog_analysis` - 错误日志分析：分析错误日志模式
+- `resource_leak_detection` - 资源泄漏检测：检测连接/内存泄漏
+- `network_diagnosis` - 网络诊断：诊断网络连接问题
+- `memory_analysis` - 内存分析：分析内存使用情况
+
+所有技能都有 mock 实现，可以直接使用。生产环境可替换为真实的工具调用。
+
+### 技能分配总览
+
+| 技能类型 | 故障诊断专家 | 性能分析专家 | 业务影响专家 |
+|---------|------------|------------|------------|
+| 数据采集 |
+| log_query | ✅ | | |
+| metric_query | ✅ | ✅ | |
+| trace_query | ✅ | | |
+| topology_query | ✅ | | ✅ |
+| 分析能力 |
+| timeseries_analysis | | ✅ | |
+| correlation_analysis | | ✅ | ✅ |
+| pattern_matching | ✅ | | |
+| history_match | ✅ | | ✅ |
+| rootcause_analysis | ✅ | | |
+| fault_propagation | ✅ | | |
+| 诊断能力 |
+| slowquery_analysis | | ✅ | |
+| errorlog_analysis | ✅ | | |
+| memory_analysis | | ✅ | |
+
 ### 1. Manager Agent
 
 负责协调整个分析流程：
@@ -85,25 +133,39 @@
 
 ### 2. Expert Agents
 
-三个专业领域的专家 Agent，并行分析：
+三个专业领域的专家 Agent，并行分析。每个专家具备不同的技能集合：
 
 #### 故障诊断专家
-- 分析系统故障的根本原因
-- 追踪故障传播路径
-- 识别故障模式
-- 提供排查建议
+**职责**: 分析系统故障的根本原因、追踪故障传播路径、识别故障模式
+
+**具备的技能** (9个):
+- `log_query` - 日志查询
+- `metric_query` - 监控指标查询
+- `trace_query` - 链路追踪
+- `topology_query` - 拓扑分析
+- `errorlog_analysis` - 错误日志分析
+- `rootcause_analysis` - 根因分析
+- `pattern_matching` - 模式匹配
+- `fault_propagation` - 故障传播分析
+- `history_match` - 历史案例匹配
 
 #### 性能分析专家
-- 分析性能指标（CPU、内存、延迟等）
-- 识别性能瓶颈
-- 评估资源使用情况
-- 提供优化建议
+**职责**: 分析性能指标、识别性能瓶颈、评估资源使用情况
+
+**具备的技能** (5个):
+- `metric_query` - 监控指标查询
+- `timeseries_analysis` - 时间序列分析
+- `correlation_analysis` - 关联分析
+- `slowquery_analysis` - 慢查询分析
+- `memory_analysis` - 内存分析
 
 #### 业务影响专家
-- 评估故障对业务的影响
-- 分析受影响的用户群体
-- 估算业务损失
-- 提供应对措施
+**职责**: 评估故障对业务的影响、分析受影响的用户群体、估算业务损失
+
+**具备的技能** (3个):
+- `topology_query` - 拓扑分析
+- `history_match` - 历史案例匹配
+- `correlation_analysis` - 关联分析
 
 ### 3. 告警池
 
@@ -157,6 +219,7 @@ alert_analysis/
 ├── main.go          # 主入口，演示如何使用系统
 ├── types.go         # 类型定义（告警、分析结果、报告等）
 ├── alarm_pool.go    # 告警池实现
+├── skills.go        # 技能库实现（数据采集、分析、诊断等）
 ├── experts.go       # 专家 Agent 实现
 ├── manager.go       # Manager Agent 实现
 └── README.md        # 本文件

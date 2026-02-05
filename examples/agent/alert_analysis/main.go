@@ -64,6 +64,13 @@ func NewAlertAnalysisSystem(ctx context.Context, chatModel model.ChatModel) (*Al
 	}
 	experts = append(experts, businessExpert)
 
+	// 打印每个专家具备的技能
+	fmt.Println("\n========== 专家技能配置 ==========")
+	for _, expert := range experts {
+		expert.PrintSkills()
+	}
+	fmt.Println("====================================")
+
 	// 创建 Manager Agent
 	manager, err := NewManagerAgent(ctx, chatModel, experts, 3) // 最多3轮迭代
 	if err != nil {
@@ -149,6 +156,11 @@ func main() {
 	// 创建 Chat Model (使用模拟实现，实际应该使用 openai.NewChatModel)
 	chatModel := &mockChatModel{}
 
+	// 演示技能库使用
+	fmt.Println("\n========== 演示：技能库使用 ==========")
+	demonstrateSkills(ctx)
+	fmt.Println("======================================\n")
+
 	// 创建告警分析系统
 	system, err := NewAlertAnalysisSystem(ctx, chatModel)
 	if err != nil {
@@ -192,4 +204,73 @@ func main() {
 `)
 	fmt.Printf("3. 取消注释代码中的 TODO 部分，启用实际的 ChatModel 调用\n")
 	fmt.Printf("==============================\n")
+}
+
+// demonstrateSkills 演示技能库使用
+func demonstrateSkills(ctx context.Context) {
+	// 创建技能注册表
+	registry := NewSkillRegistry()
+
+	// 打印所有可用技能
+	registry.PrintSkills()
+
+	// 演示几个核心技能的使用
+	fmt.Println("\n========== 技能执行演示 ==========")
+
+	// 1. 日志查询技能
+	logSkill, _ := registry.Get(LogQuerySkill)
+	result, _ := logSkill.Execute(ctx, nil)
+	fmt.Printf("\n[%s]\n", logSkill.GetName())
+	fmt.Printf("  结果: %s\n", result.Message)
+	fmt.Printf("  查询到日志数: %v\n", result.Data["logCount"])
+	fmt.Printf("  错误日志数: %v\n", result.Data["errorLogs"])
+
+	// 2. 监控指标查询技能
+	metricSkill, _ := registry.Get(MetricQuerySkill)
+	result, _ = metricSkill.Execute(ctx, nil)
+	fmt.Printf("\n[%s]\n", metricSkill.GetName())
+	fmt.Printf("  结果: %s\n", result.Message)
+	if cpu, ok := result.Data["cpu"].(map[string]any); ok {
+		fmt.Printf("  CPU 使用率: %.1f%%\n", cpu["usage"])
+	}
+
+	// 3. 时间序列分析技能
+	tsSkill, _ := registry.Get(TimeSeriesAnalysisSkill)
+	result, _ = tsSkill.Execute(ctx, nil)
+	fmt.Printf("\n[%s]\n", tsSkill.GetName())
+	fmt.Printf("  结果: %s\n", result.Message)
+	fmt.Printf("  趋势: %v\n", result.Data["trend"])
+
+	// 4. 关联分析技能
+	corrSkill, _ := registry.Get(CorrelationAnalysisSkill)
+	result, _ = corrSkill.Execute(ctx, nil)
+	fmt.Printf("\n[%s]\n", corrSkill.GetName())
+	fmt.Printf("  结果: %s\n", result.Message)
+
+	// 5. 慢查询分析技能
+	slowQuerySkill, _ := registry.Get(SlowQueryAnalysisSkill)
+	result, _ = slowQuerySkill.Execute(ctx, nil)
+	fmt.Printf("\n[%s]\n", slowQuerySkill.GetName())
+	fmt.Printf("  结果: %s\n", result.Message)
+	if queries, ok := result.Data["slowQueries"].([]map[string]any); ok {
+		fmt.Printf("  发现慢查询数: %d\n", len(queries))
+	}
+
+	// 6. 历史案例匹配技能
+	historySkill, _ := registry.Get(HistoryMatchSkill)
+	result, _ = historySkill.Execute(ctx, nil)
+	fmt.Printf("\n[%s]\n", historySkill.GetName())
+	fmt.Printf("  结果: %s\n", result.Message)
+	if cases, ok := result.Data["similarCases"].([]map[string]any); ok {
+		fmt.Printf("  相似案例数: %d\n", len(cases))
+	}
+
+	// 7. 根因分析技能
+	rcSkill, _ := registry.Get(RootCauseAnalysisSkill)
+	result, _ = rcSkill.Execute(ctx, nil)
+	fmt.Printf("\n[%s]\n", rcSkill.GetName())
+	fmt.Printf("  结果: %s\n", result.Message)
+	fmt.Printf("  主要根因: %v\n", result.Data["primaryRootCause"])
+
+	fmt.Println("\n==================================")
 }
